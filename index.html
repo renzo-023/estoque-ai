@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#090d16">
+  <title>Estoque AI</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  
+  <!-- Tailwind CSS, Chart.js e Leitor QR Code -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    body { background-color: #090d16; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(51, 65, 85, 0.8); }
+    #qr-reader video { border-radius: 0.75rem; object-fit: cover; }
+  </style>
+</head>
+<body class="min-h-screen pb-24 max-w-lg mx-auto px-4 pt-5">
+
+  <!-- HEADER -->
+  <header class="flex items-center justify-between mb-5">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl">
+        🧾
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-white">Estoque AI</h1>
+        <p class="text-xs text-slate-400">Finanças & Suprimentos</p>
+      </div>
+    </div>
+
+    <!-- Botão de Instalação Nativa (aparece automaticamente quando disponível) -->
+    <button id="btn-instalar-pwa" class="hidden bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-3 py-2 rounded-lg shadow-lg shadow-emerald-500/20 transition">
+      📲 Instalar App
+    </button>
+  </header>
+
+  <!-- CONTEÚDO: ABA 1 - LANÇAR NOTA -->
+  <main id="view-lancar" class="space-y-4">
+    <!-- Card QR Code -->
+    <div class="glass rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Leitura Rápida (NFC-e)</h2>
+        <span class="text-[11px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-medium">Recomendado</span>
+      </div>
+
+      <button id="btn-abrir-qr" onclick="iniciarScannerQR()" class="w-full py-6 px-4 rounded-xl border-2 border-dashed border-blue-500/60 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 flex flex-col items-center justify-center gap-2 transition active:scale-[0.99]">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10"/></svg>
+        <span class="font-semibold text-sm">Escanear QR Code da Nota</span>
+      </button>
+
+      <div id="qr-container" class="hidden mt-3 rounded-xl overflow-hidden border border-blue-500/50 bg-black">
+        <div id="qr-reader" class="w-full"></div>
+        <button onclick="pararScannerQR()" class="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold transition">
+          ✖ Fechar Câmera
+        </button>
+      </div>
+
+      <div class="flex gap-2 mt-3">
+        <input type="url" id="input-link" placeholder="Ou cole o link da SEFAZ..." class="flex-1 bg-slate-900/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+        <button onclick="enviarLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition">
+          Enviar
+        </button>
+      </div>
+    </div>
+
+    <!-- Card Foto do Cupom -->
+    <div class="glass rounded-2xl p-5">
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Cupom sem QR Code</h2>
+      <label for="input-camera" class="w-full py-6 px-4 rounded-xl border-2 border-dashed border-emerald-500/60 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 flex flex-col items-center justify-center gap-2 cursor-pointer transition active:scale-[0.99]">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="font-semibold text-sm">Tirar Foto ou Escolher Cupom</span>
+      </label>
+      <input type="file" id="input-camera" accept="image/*" capture="environment" class="hidden">
+    </div>
+
+    <!-- Feedback de Processamento -->
+    <div id="status-box" class="hidden rounded-2xl p-4 text-sm leading-relaxed border"></div>
+  </main>
+
+  <!-- CONTEÚDO: ABA 2 - DASHBOARD -->
+  <main id="view-dashboard" class="hidden space-y-4">
+    <div class="flex items-center justify-between">
+      <select id="filtro-mes" onchange="renderizarDashboard()" class="bg-slate-800 border border-slate-700 text-white text-xs font-semibold rounded-lg px-3 py-2 focus:outline-none">
+        <option value="TODOS">Todos os Meses</option>
+      </select>
+      <button onclick="carregarDadosPlanilha()" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 rounded-lg text-slate-300">
+        🔄 Sincronizar
+      </button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="glass rounded-2xl p-4">
+        <p class="text-xs text-slate-400">Gasto Total</p>
+        <p id="kpi-gasto" class="text-xl font-bold text-emerald-400 mt-1">R$ 0,00</p>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <p class="text-xs text-slate-400">Itens Monitorados</p>
+        <p id="kpi-itens" class="text-xl font-bold text-white mt-1">0</p>
+      </div>
+    </div>
+
+    <!-- Gráfico -->
+    <div class="glass rounded-2xl p-5">
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">Top Gastos por Produto</h2>
+      <div class="relative h-56 w-full flex items-center justify-center">
+        <canvas id="grafico-gastos"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <!-- CONTEÚDO: ABA 3 - ESTOQUE -->
+  <main id="view-estoque" class="hidden space-y-4">
+    <div class="flex gap-2">
+      <input type="text" id="busca-produto" oninput="renderizarListaEstoque()" placeholder="Buscar produto no estoque..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+      <button onclick="carregarDadosPlanilha()" class="bg-slate-800 border border-slate-700 px-3.5 rounded-xl text-sm">🔄</button>
+    </div>
+
+    <div id="lista-estoque" class="glass rounded-2xl divide-y divide-slate-800 overflow-hidden">
+      <p class="p-5 text-sm text-slate-400 text-center">Toque em Sincronizar para carregar...</p>
+    </div>
+  </main>
+
+  <!-- BARRA DE NAVEGAÇÃO INFERIOR (ESTILO APP NATIVO) -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-lg border-t border-slate-800 px-4 py-2 max-w-lg mx-auto flex justify-around z-50">
+    <button onclick="navegar('lancar')" id="nav-lancar" class="flex flex-col items-center gap-1 py-1 px-4 text-emerald-400 font-semibold text-xs">
+      <span class="text-lg">📸</span>
+      <span>Lançar</span>
+    </button>
+    <button onclick="navegar('dashboard')" id="nav-dashboard" class="flex flex-col items-center gap-1 py-1 px-4 text-slate-400 font-medium text-xs">
+      <span class="text-lg">📊</span>
+      <span>Dashboard</span>
+    </button>
+    <button onclick="navegar('estoque')" id="nav-estoque" class="flex flex-col items-center gap-1 py-1 px-4 text-slate-400 font-medium text-xs">
+      <span class="text-lg">📦</span>
+      <span>Estoque</span>
+    </button>
+  </nav>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzUIbLbQnczxweWRGPp8NtUCH4LSKmWkibVmsL-x-ObzSGSGJWtWBhkIq_xJb-ZdreG/exec';
+    
+    let dadosEstoqueCache = [];
+    let chartInstance = null;
+    let html5QrCode = null;
+    let scannerAtivo = false;
+    let deferredPrompt = null;
+
+    // Registro do Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW erro:', err));
+    }
+
+    // Captura evento nativo de instalação PWA no Chrome Android/Desktop
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btnInstalar = document.getElementById('btn-instalar-pwa');
+      btnInstalar.classList.remove('hidden');
+      
+      btnInstalar.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          btnInstalar.classList.add('hidden');
+        }
+        deferredPrompt = null;
+      });
+    });
+
+    // Navegação entre abas
+    function navegar(aba) {
+      pararScannerQR();
+      ['lancar', 'dashboard', 'estoque'].forEach(id => {
+        document.getElementById(`view-${id}`).classList.add('hidden');
+        const navBtn = document.getElementById(`nav-${id}`);
+        navBtn.classList.remove('text-emerald-400', 'font-semibold');
+        navBtn.classList.add('text-slate-400', 'font-medium');
+      });
+
+      document.getElementById(`view-${aba}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`nav-${aba}`);
+      activeBtn.classList.remove('text-slate-400', 'font-medium');
+      activeBtn.classList.add('text-emerald-400', 'font-semibold');
+
+      if ((aba === 'dashboard' || aba === 'estoque') && dadosEstoqueCache.length === 0) {
+        carregarDadosPlanilha();
+      }
+    }
+
+    function mostrarStatus(tipo, html) {
+      const box = document.getElementById('status-box');
+      box.classList.remove('hidden', 'bg-blue-500/10', 'border-blue-500/40', 'text-blue-200', 'bg-emerald-500/10', 'border-emerald-500/40', 'text-emerald-200', 'bg-rose-500/10', 'border-rose-500/40', 'text-rose-200');
+      
+      if (tipo === 'loading') box.classList.add('bg-blue-500/10', 'border-blue-500/40', 'text-blue-200');
+      if (tipo === 'success') box.classList.add('bg-emerald-500/10', 'border-emerald-500/40', 'text-emerald-200');
+      if (tipo === 'error') box.classList.add('bg-rose-500/10', 'border-rose-500/40', 'text-rose-200');
+      
+      box.innerHTML = html;
+    }
+
+    // Scanner QR Code
+    async function iniciarScannerQR() {
+      if (scannerAtivo) return;
+      document.getElementById('btn-abrir-qr').classList.add('hidden');
+      document.getElementById('qr-container').classList.remove('hidden');
+      document.getElementById('status-box').classList.add('hidden');
+
+      html5QrCode = new Html5Qrcode("qr-reader");
+      scannerAtivo = true;
+
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 230, height: 230 } },
+          async (texto) => {
+            await pararScannerQR();
+            if (texto.startsWith('http')) {
+              mostrarStatus('loading', '⏳ QR Code detectado! Extraindo dados da nota fiscal...');
+              await enviarParaAppsScript({ origem: 'pwa', tipo: 'link', url: texto.trim() });
+            } else {
+              mostrarStatus('error', '⚠️ QR Code inválido (não é uma URL): ' + texto);
+            }
+          },
+          () => {}
+        );
+      } catch (err) {
+        scannerAtivo = false;
+        document.getElementById('btn-abrir-qr').classList.remove('hidden');
+        document.getElementById('qr-container').classList.add('hidden');
+        mostrarStatus('error', '❌ Erro ao abrir câmera: ' + err);
+      }
+    }
+
+    async function pararScannerQR() {
+      if (html5QrCode && scannerAtivo) {
+        try { await html5QrCode.stop(); html5QrCode.clear(); } catch (e) {}
+      }
+      scannerAtivo = false;
+      document.getElementById('qr-container').classList.add('hidden');
+      document.getElementById('btn-abrir-qr').classList.remove('hidden');
+    }
+
+    // Foto do Cupom
+    function redimensionarImagem(file, maxWidth = 1200) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let w = img.width, h = img.height;
+            if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById('input-camera').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      mostrarStatus('loading', '⏳ Otimizando imagem e lendo itens com Gemini AI...');
+      try {
+        const base64 = await redimensionarImagem(file);
+        await enviarParaAppsScript({ origem: 'pwa', tipo: 'foto', imagemBase64: base64 });
+      } catch (err) {
+        mostrarStatus('error', '❌ Erro na imagem: ' + err.message);
+      }
+      e.target.value = '';
+    });
+
+    async function enviarLink() {
+      const input = document.getElementById('input-link');
+      const url = input.value.trim();
+      if (!url.startsWith('http')) return mostrarStatus('error', '⚠️ Cole um link válido da SEFAZ.');
+      mostrarStatus('loading', '⏳ Lendo nota fiscal pelo link...');
+      await enviarParaAppsScript({ origem: 'pwa', tipo: 'link', url });
+      input.value = '';
+    }
+
+    async function enviarParaAppsScript(payload) {
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.status === 'ok') {
+          const n = json.nota;
+          dadosEstoqueCache = []; // Força atualizar o dashboard na próxima visita
+          mostrarStatus('success', `
+            <div class="font-bold text-emerald-400 mb-1">✅ Nota Registrada na Planilha!</div>
+            <div>🏪 <b>Loja:</b> ${n.estabelecimento}</div>
+            <div>📅 <b>Data:</b> ${n.data}</div>
+            <div>💰 <b>Total:</b> R$ ${Number(n.valor_total).toFixed(2)}</div>
+            <div>📦 <b>Itens:</b> ${n.itens.length} produtos cadastrados</div>
+          `);
+        } else {
+          mostrarStatus('error', '❌ Erro no servidor: ' + json.mensagem);
+        }
+      } catch (err) {
+        mostrarStatus('error', '❌ Erro de rede: ' + err.message);
+      }
+    }
+
+    // Carregar dados para Dashboard e Estoque
+    async function carregarDadosPlanilha() {
+      document.getElementById('lista-estoque').innerHTML = '<p class="p-5 text-sm text-slate-400 text-center">⏳ Sincronizando com Google Sheets...</p>';
+      try {
+        const res = await fetch(API_URL);
+        const json = await res.json();
+        if (json.status === 'ok') {
+          dadosEstoqueCache = json.estoque || [];
+          atualizarFiltroMeses();
+          renderizarDashboard();
+          renderizarListaEstoque();
+        }
+      } catch (err) {
+        document.getElementById('lista-estoque').innerHTML = `<p class="p-5 text-sm text-rose-400 text-center">❌ Erro ao carregar: ${err.message}</p>`;
+      }
+    }
+
+    function atualizarFiltroMeses() {
+      const select = document.getElementById('filtro-mes');
+      const mesesUnicos = [...new Set(dadosEstoqueCache.map(i => i.mes).filter(Boolean))];
+      select.innerHTML = '<option value="TODOS">Todos os Meses</option>' + 
+        mesesUnicos.map(m => `<option value="${m}">${m}</option>`).join('');
+    }
+
+    function renderizarDashboard() {
+      const mesSelecionado = document.getElementById('filtro-mes').value;
+      const filtrados = mesSelecionado === 'TODOS' 
+        ? dadosEstoqueCache 
+        : dadosEstoqueCache.filter(i => i.mes === mesSelecionado);
+
+      const totalGasto = filtrados.reduce((acc, item) => acc + (Number(item.gasto) || 0), 0);
+      document.getElementById('kpi-gasto').textContent = `R$ ${totalGasto.toFixed(2).replace('.', ',')}`;
+      document.getElementById('kpi-itens').textContent = filtrados.length;
+
+      // Top 6 itens mais caros para o gráfico
+      const ordenados = [...filtrados].sort((a, b) => Number(b.gasto) - Number(a.gasto)).slice(0, 6);
+      const ctx = document.getElementById('grafico-gastos').getContext('2d');
+
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ordenados.map(i => i.produto),
+          datasets: [{
+            data: ordenados.map(i => Number(i.gasto) || 0),
+            backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: '#cbd5e1', font: { size: 11 }, boxWidth: 12 } }
+          }
+        }
+      });
+    }
+
+    function renderizarListaEstoque() {
+      const termo = document.getElementById('busca-produto').value.toLowerCase();
+      const lista = document.getElementById('lista-estoque');
+      const filtrados = dadosEstoqueCache.filter(i => String(i.produto).toLowerCase().includes(termo));
+
+      if (filtrados.length === 0) {
+        lista.innerHTML = '<p class="p-5 text-sm text-slate-400 text-center">Nenhum item encontrado no estoque.</p>';
+        return;
+      }
+
+      lista.innerHTML = filtrados.map(item => `
+        <div class="p-4 flex items-center justify-between hover:bg-slate-800/40 transition">
+          <div>
+            <div class="font-semibold text-sm text-white">${item.produto}</div>
+            <div class="text-xs text-slate-400 mt-0.5">Período: ${item.mes || 'Geral'}</div>
+          </div>
+          <div class="text-right">
+            <div class="font-bold text-sm text-emerald-400">${item.quantidade} ${item.unidade}</div>
+            <div class="text-xs text-slate-400">R$ ${Number(item.gasto).toFixed(2)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  </script>
+</body>
+</html>
